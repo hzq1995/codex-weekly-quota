@@ -20,7 +20,7 @@
 
 点击任务栏中的格子图标，即可查看剩余及已用比例、重置时间和最近更新时间；也可以在卡片中刷新额度、设置开机启动或退出程序。
 
-<img src="assets/details.png" width="360" alt="Codex 周额度详情卡片：剩余额度、重置时间和操作按钮">
+<img src="assets/details-illustration-v2.png" width="360" alt="Codex 周额度详情卡片：剩余额度、重置时间和操作按钮">
 
 上图为界面示意，额度和时间仅为示例。
 
