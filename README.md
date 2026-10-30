@@ -26,7 +26,7 @@
 
 ## 下载与使用
 
-1. 前往 [Releases](../../releases/latest)，下载 `Codex周额度.exe`。
+1. 前往 [Releases](../../releases/latest)，下载 `Codex-Weekly.exe`。
 2. 在 Windows 上运行程序；无需单独安装 Python。
 3. 确保本机 Codex 已登录 ChatGPT 账户。程序启动后会读取当前 Windows 用户的 Codex 登录状态。
 4. 在任务栏通知区域找到格子图标。若图标被隐藏，点击任务栏的 `^`，或在 Windows 的任务栏设置中调整显示。
