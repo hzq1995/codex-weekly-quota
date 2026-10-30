@@ -77,6 +77,26 @@ def get_usage():
     return max(0, min(100, 100-used)), weekly.get('reset_at')
 
 
+def reset_progress(reset_at, now=None):
+    if reset_at is None:
+        return None, '重置时间未知'
+    now = time.time() if now is None else now
+    seconds = max(0, reset_at - now)
+    elapsed = max(0.0, min(1.0, 1.0 - seconds / 604800))
+    if seconds <= 0:
+        return elapsed, '等待额度重置更新'
+    minutes = max(1, math.ceil(seconds / 60))
+    days, rem = divmod(minutes, 1440)
+    hours, mins = divmod(rem, 60)
+    if days:
+        label = f'还有 {days} 天 {hours} 小时'
+    elif hours:
+        label = f'还有 {hours} 小时 {mins} 分钟'
+    else:
+        label = f'还有 {mins} 分钟'
+    return elapsed, label
+
+
 def grid_image(remaining, stale=False):
     im = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
     draw = ImageDraw.Draw(im)
@@ -126,6 +146,7 @@ class App:
         self.update_icon(add=True, stale=True)
         self.refresh()
         self.root.after(100, self.pump)
+        self.root.after(60000, self.countdown_tick)
 
     def build_card(self):
         bg = '#ffffff'
@@ -152,6 +173,16 @@ class App:
         self.detail_label = tk.Label(info, text='正在获取数据…', font=('Microsoft YaHei UI', 9),
                                      bg='#f5f8f7', fg='#536276', justify='left', anchor='w')
         self.detail_label.pack(fill='x')
+        time_row = tk.Frame(info, bg='#f5f8f7')
+        time_row.pack(fill='x', pady=(10, 3))
+        tk.Label(time_row, text='本周进度', font=('Microsoft YaHei UI', 8),
+                 bg='#f5f8f7', fg='#7a8e86').pack(side='left')
+        self.countdown_label = tk.Label(time_row, text='重置时间未知', font=('Microsoft YaHei UI', 8),
+                                        bg='#f5f8f7', fg='#44866b')
+        self.countdown_label.pack(side='right')
+        self.time_bar = tk.Canvas(info, height=8, bg='#f5f8f7', bd=0, highlightthickness=0)
+        self.time_bar.pack(fill='x', pady=(0, 2))
+        self.time_bar.bind('<Configure>', lambda event: self.update_countdown())
 
         self.status_label = tk.Label(frame, text='', font=('Microsoft YaHei UI', 8),
                                      bg=bg, fg='#83909d', anchor='w')
@@ -175,6 +206,22 @@ class App:
                   cursor='hand2', padx=8, pady=4).pack(side='right')
         self.root.bind('<Escape>', lambda event: self.hide())
         self.root.bind('<FocusOut>', self.focus_out)
+
+    def update_countdown(self):
+        progress, text = reset_progress(self.reset)
+        self.countdown_label.config(text=text)
+        canvas = self.time_bar
+        width = max(8, canvas.winfo_width())
+        canvas.delete('all')
+        canvas.create_line(4, 4, width - 4, 4, width=6, fill='#dce9e2', capstyle=tk.ROUND)
+        if progress is not None and progress > 0:
+            end = 4 + (width - 8) * progress
+            canvas.create_line(4, 4, max(4.1, end), 4, width=6,
+                               fill='#2c9a72', capstyle=tk.ROUND)
+
+    def countdown_tick(self):
+        self.update_countdown()
+        self.root.after(60000, self.countdown_tick)
 
     def focus_out(self, event):
         self.root.after(150, self.check_focus)
@@ -253,6 +300,7 @@ class App:
         threading.Thread(target=worker, daemon=True).start()
 
     def paint(self):
+        self.update_countdown()
         if self.remaining is None:
             self.value_label.config(text='--')
             self.detail_label.config(text=self.error or '正在获取数据…')
