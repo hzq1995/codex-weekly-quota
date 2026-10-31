@@ -107,10 +107,12 @@ def grid_image(remaining, stale=False):
     for i in range(16):
         x, y = (i % 4) * 16, (i // 4) * 16
         fraction = max(0.0, min(1.0, blocks - i))
-        if fraction <= 0:
+        if remaining is None:
             color = '#bcc4ce'
         elif stale:
             color = '#888e98'
+        elif fraction <= 0:
+            color = '#d84545'
         else:
             color = colors[min(5, max(0, math.ceil(fraction * 6) - 1))]
         draw.rectangle((x + (2 if i % 4 else 0), y + (2 if i // 4 else 0), x + 15 - (2 if i % 4 < 3 else 0), y + 15 - (2 if i // 4 < 3 else 0)), fill=color)
