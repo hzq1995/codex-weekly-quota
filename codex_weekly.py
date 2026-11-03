@@ -21,6 +21,7 @@ from PIL import Image, ImageDraw
 AUTH = Path.home() / '.codex' / 'auth.json'
 URL = 'https://chatgpt.com/backend-api/wham/usage'
 TRAY_MESSAGE = win32con.WM_USER + 20
+TASKBAR_CREATED = win32gui.RegisterWindowMessage("TaskbarCreated")
 REFRESH_SECONDS = 900
 ICON_PATH = Path(tempfile.gettempdir()) / ('codex-weekly-grid-%d.ico' % os.getpid())
 RUN_KEY = r'Software\Microsoft\Windows\CurrentVersion\Run'
@@ -142,7 +143,7 @@ class App:
         wc = win32gui.WNDCLASS()
         wc.hInstance = win32api.GetModuleHandle(None)
         wc.lpszClassName = 'CodexWeeklyGridWindow_' + str(os.getpid())
-        wc.lpfnWndProc = {TRAY_MESSAGE: self.on_tray, win32con.WM_DESTROY: self.on_destroy}
+        wc.lpfnWndProc = {TRAY_MESSAGE: self.on_tray, TASKBAR_CREATED: self.on_taskbar_created, win32con.WM_DESTROY: self.on_destroy}
         self.atom = win32gui.RegisterClass(wc)
         self.hwnd = win32gui.CreateWindow(self.atom, 'Codex Weekly Grid', 0, 0, 0, 0, 0, 0, 0, wc.hInstance, None)
         self.update_icon(add=True, stale=True)
@@ -238,7 +239,11 @@ class App:
         new_icon = win32gui.LoadImage(0, str(ICON_PATH), win32con.IMAGE_ICON, 0, 0, win32con.LR_LOADFROMFILE | win32con.LR_DEFAULTSIZE)
         tip = 'Codex 周额度' + ('（数据可能过期）' if stale else '')
         flags = win32gui.NIF_ICON | win32gui.NIF_MESSAGE | win32gui.NIF_TIP
-        win32gui.Shell_NotifyIcon(win32gui.NIM_ADD if add else win32gui.NIM_MODIFY, (self.hwnd, 1, flags, TRAY_MESSAGE, new_icon, tip))
+        try:
+            win32gui.Shell_NotifyIcon(win32gui.NIM_ADD if add else win32gui.NIM_MODIFY, (self.hwnd, 1, flags, TRAY_MESSAGE, new_icon, tip))
+        except Exception:
+            win32gui.DestroyIcon(new_icon)
+            raise
         if self.icon:
             win32gui.DestroyIcon(self.icon)
         self.icon = new_icon
@@ -248,6 +253,10 @@ class App:
         # callback returns, avoiding nested event loops in the window procedure.
         if lp in (win32con.WM_LBUTTONUP, win32con.WM_RBUTTONUP):
             self.actions.put('toggle')
+        return 0
+
+    def on_taskbar_created(self, hwnd, msg, wp, lp):
+        self.actions.put('restore_tray')
         return 0
 
     def toggle_startup(self):
@@ -324,6 +333,12 @@ class App:
                 action = self.actions.get_nowait()
                 if action == 'toggle':
                     self.hide() if self.showing else self.show()
+                elif action == 'restore_tray':
+                    try:
+                        self.update_icon(add=True, stale=bool(self.error) or self.remaining is None)
+                    except Exception:
+                        # Explorer can still be starting; retry without stopping the event loop.
+                        self.root.after(5000, lambda: self.actions.put('restore_tray'))
         except queue.Empty:
             pass
         try:
